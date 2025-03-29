@@ -43,8 +43,10 @@ sleep 5
 
 # Тестируем напрямую доступность эндпоинта health
 echo "Проверка эндпоинта /health..."
-wget -O - http://localhost:3000/health || echo "ОШИБКА: Эндпоинт /health недоступен"
-curl -v http://localhost:3000/health 2>&1 || echo "ОШИБКА: Curl не смог подключиться к /health"
+LOCAL_PORT=${PORT:-3000}
+
+wget -O - http://localhost:$LOCAL_PORT/health || echo "ОШИБКА: Эндпоинт /health недоступен"
+curl -v http://localhost:$LOCAL_PORT/health 2>&1 || echo "ОШИБКА: Curl не смог подключиться к /health"
 
 # Ожидаем завершения работы приложения
 echo "Приложение запущено, PID: $NODE_PID"
