@@ -171,9 +171,10 @@ const config: Config = {
   },
   
   optimizer: {
-    jpegQuality: 10,
-    pngQuality: 10,
-    webpQuality: 10,
+    // Повышаем качество оптимизации для обычных изображений
+    jpegQuality: 20, // Было 10, повышаем до 85
+    pngQuality: 20,  // Было 10, повышаем до 80
+    webpQuality: 20, // Было 10, повышаем до 85
     optimizeOnUpload: true,
     scheduledOptimization: false,
     optimizationSchedule: '0 3 * * *', // Каждый день в 3:00
@@ -185,12 +186,12 @@ const config: Config = {
       maxPixelsInMemory: 100000000, // 100 мегапикселей
       tempDir: path.join(rootDir, 'temp'),
       
-      // Настройки агрессивного сжатия для больших изображений
+      // Настройки агрессивного сжатия для больших изображений - повышаем качество
       aggressiveCompression: {
         enabled: true,
-        jpegQuality: 60,
-        pngQuality: 65,
-        webpQuality: 55,
+        jpegQuality: 20, // Было 60, повышаем до 75
+        pngQuality: 20,  // Было 65, повышаем до 70
+        webpQuality: 20, // Было 55, повышаем до 75
         resizeOversizedImages: true,
         maxDimension: 4000 // Максимальный размер 4000px
       }

@@ -116,6 +116,10 @@ class OptimizerService {
             ? config.optimizer.largeImageHandling.aggressiveCompression.jpegQuality
             : config.optimizer.jpegQuality;
           outputOptions.progressive = true;
+          // Добавляем настройки для предотвращения шакалинга
+          outputOptions.trellisQuantisation = true;
+          outputOptions.overshootDeringing = true;
+          outputOptions.optimizeScans = true;
           break;
         case 'png':
           outputOptions.quality = useAggressiveCompression
@@ -123,11 +127,16 @@ class OptimizerService {
             : config.optimizer.pngQuality;
           outputOptions.progressive = true;
           outputOptions.compressionLevel = 9;
+          // Предотвращаем потерю качества при сжатии PNG
+          outputOptions.palette = false;
           break;
         case 'webp':
           outputOptions.quality = useAggressiveCompression
             ? config.optimizer.largeImageHandling.aggressiveCompression.webpQuality
             : config.optimizer.webpQuality;
+          // Добавляем настройки для предотвращения артефактов
+          outputOptions.alphaQuality = 100;
+          outputOptions.smartSubsample = true;
           break;
         case 'gif':
           // Sharp не оптимизирует GIF, просто копируем
@@ -271,7 +280,11 @@ class OptimizerService {
               .jpeg({
                 quality: config.optimizer.jpegQuality,
                 progressive: true,
-                force: false
+                force: false,
+                // Улучшенная оптимизация JPEG для сохранения качества
+                trellisQuantisation: true,
+                overshootDeringing: true,
+                optimizeScans: true
               })
               .withMetadata({ exif: { IFD0: metadata } });
             break;
@@ -281,7 +294,9 @@ class OptimizerService {
                 quality: config.optimizer.pngQuality,
                 progressive: true,
                 compressionLevel: 9,
-                force: false
+                force: false,
+                // Отключаем палитру чтобы избежать потери качества для градиентов
+                palette: false
               })
               .withMetadata({ exif: { IFD0: metadata } });
             break;
@@ -289,7 +304,10 @@ class OptimizerService {
             sharpInstance = sharpInstance
               .webp({
                 quality: config.optimizer.webpQuality,
-                force: false
+                force: false,
+                // Улучшенные настройки для WebP
+                alphaQuality: 100,
+                smartSubsample: true
               })
               .withMetadata({ exif: { IFD0: metadata } });
             break;
@@ -318,52 +336,63 @@ class OptimizerService {
         }
       }
       
-      if (!success) {
+      // Проверяем результат оптимизации, не заменяем исходник если оптимизация не дала выигрыша
+      // или качество существенно пострадало
+      if (success) {
+        // Получаем размеры после оптимизации
+        const optimizedStats = await fsPromises.stat(tempPath);
+        
+        // Если разница в размере незначительная, или новый файл больше старого
+        // считаем что оптимизация не нужна
+        if (originalStats.size <= optimizedStats.size || 
+            (originalStats.size - optimizedStats.size) / originalStats.size < 0.05) { // меньше 5% выигрыша
+          console.log(`Оптимизация не дала значительного выигрыша в размере для ${filePath}, сохраняем оригинал`);
+          await fsPromises.unlink(tempPath); // Удаляем временный файл
+          return true;
+        }
+        
+        try {
+          // Удаляем оригинальный файл
+          await fsPromises.unlink(filePath);
+          
+          // Переименовываем временный файл в оригинальный
+          await fsPromises.rename(tempPath, filePath);
+        } catch (error) {
+          console.error(`Ошибка при замене файла ${filePath}:`, error);
+          // Пробуем альтернативный метод копирования если rename не работает
+          try {
+            const readStream = fs.createReadStream(tempPath);
+            const writeStream = fs.createWriteStream(filePath);
+            
+            await new Promise((resolve, reject) => {
+              readStream.pipe(writeStream);
+              writeStream.on('finish', resolve);
+              writeStream.on('error', reject);
+            });
+            
+            await fsPromises.unlink(tempPath);
+          } catch (copyError) {
+            console.error(`Ошибка при копировании файла ${tempPath} в ${filePath}:`, copyError);
+            return false;
+          }
+        }
+        
+        // Выводим статистику оптимизации
+        const savedBytes = originalStats.size - optimizedStats.size;
+        const savedPercent = originalStats.size > 0 ? (savedBytes / originalStats.size) * 100 : 0;
+        
+        console.log(`Оптимизация успешна: ${filePath}`);
+        if (savedBytes > 0) {
+          console.log(`Сжатие: ${formatBytes(savedBytes)} (${savedPercent.toFixed(2)}%)`);
+        } else {
+          console.log(`Изображение не требует дополнительной оптимизации (экономия: ${formatBytes(savedBytes)})`);
+        }
+        
+        return true;
+      } else {
         console.error(`Не удалось оптимизировать изображение: ${filePath}`);
         return false;
       }
-
-      // Получаем размеры после оптимизации
-      const optimizedStats = await fsPromises.stat(tempPath);
-      
-      try {
-        // Удаляем оригинальный файл
-        await fsPromises.unlink(filePath);
-        
-        // Переименовываем временный файл в оригинальный
-        await fsPromises.rename(tempPath, filePath);
-      } catch (error) {
-        console.error(`Ошибка при замене файла ${filePath}:`, error);
-        // Пробуем альтернативный метод копирования если rename не работает
-        try {
-          const readStream = fs.createReadStream(tempPath);
-          const writeStream = fs.createWriteStream(filePath);
-          
-          await new Promise((resolve, reject) => {
-            readStream.pipe(writeStream);
-            writeStream.on('finish', resolve);
-            writeStream.on('error', reject);
-          });
-          
-          await fsPromises.unlink(tempPath);
-        } catch (copyError) {
-          console.error(`Ошибка при копировании файла ${tempPath} в ${filePath}:`, copyError);
-          return false;
-        }
-      }
-      
-      // Выводим статистику оптимизации
-      const savedBytes = originalStats.size - optimizedStats.size;
-      const savedPercent = originalStats.size > 0 ? (savedBytes / originalStats.size) * 100 : 0;
-      
-      console.log(`Оптимизация успешна: ${filePath}`);
-      if (savedBytes > 0) {
-        console.log(`Сжатие: ${formatBytes(savedBytes)} (${savedPercent.toFixed(2)}%)`);
-      } else {
-        console.log(`Изображение не требует дополнительной оптимизации (экономия: ${formatBytes(savedBytes)})`);
-      }
-      
-      return true;
     } catch (error) {
       console.error(`Ошибка при оптимизации ${filePath}:`, error);
       return false;

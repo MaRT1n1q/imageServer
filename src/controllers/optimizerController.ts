@@ -30,10 +30,10 @@ class OptimizerController {
         });
       }
 
-      // Показываем информацию об агрессивном сжатии
+      // Показываем информацию об агрессивном сжатии и качестве
       const compressionMode = config.optimizer.largeImageHandling.aggressiveCompression.enabled
-        ? 'агрессивное сжатие для больших изображений'
-        : 'стандартное сжатие';
+        ? `интеллектуальное сжатие для больших изображений (качество ${config.optimizer.largeImageHandling.aggressiveCompression.jpegQuality}%)`
+        : `стандартное сжатие (качество ${config.optimizer.jpegQuality}%)`;
       
       // Запускаем оптимизацию
       console.log(`Запуск оптимизации в директории: ${directory} (режим: ${compressionMode})`);
@@ -51,7 +51,15 @@ class OptimizerController {
         stats: {
           ...stats,
           largeImages: stats.largeImages || 0,
-          compressionMode
+          compressionMode,
+          qualitySettings: {
+            standardJpegQuality: config.optimizer.jpegQuality,
+            standardPngQuality: config.optimizer.pngQuality,
+            standardWebpQuality: config.optimizer.webpQuality,
+            largeJpegQuality: config.optimizer.largeImageHandling.aggressiveCompression.jpegQuality,
+            largePngQuality: config.optimizer.largeImageHandling.aggressiveCompression.pngQuality,
+            largeWebpQuality: config.optimizer.largeImageHandling.aggressiveCompression.webpQuality,
+          }
         }
       });
     } catch (error) {
@@ -172,9 +180,9 @@ class OptimizerController {
         // Проверяем, является ли файл большим изображением
         const isLarge = await optimizerService.isLargeImage(filePath);
         if (isLarge) {
-          console.log(`Автоматическая оптимизация большого изображения после загрузки: ${filePath}`);
+          console.log(`Автоматическая оптимизация большого изображения после загрузки: ${filePath} (с сохранением высокого качества)`);
         } else {
-          console.log(`Автоматическая оптимизация после загрузки: ${filePath}`);
+          console.log(`Автоматическая оптимизация после загрузки: ${filePath} (с сохранением высокого качества)`);
         }
         await optimizerService.optimizeImage(filePath);
       } catch (error) {
