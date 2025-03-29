@@ -30,12 +30,12 @@ class ImageController {
                 // Получаем относительный путь для URL
                 const relativePath = path_1.default.relative(config_1.default.uploadsDir, req.file.path).replace(/\\/g, '/');
                 const baseUrl = `${req.protocol}://${req.get('host')}`;
-                // Формируем ответ
+                // Формируем ответ (убираем префикс /images/ из URL)
                 const response = {
                     success: true,
                     filename: req.file.filename,
                     path: relativePath,
-                    url: `${baseUrl}/images/${relativePath}`,
+                    url: `${baseUrl}/${relativePath}`,
                     message: 'Файл успешно загружен'
                 };
                 return res.status(201).json(response);

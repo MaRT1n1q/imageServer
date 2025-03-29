@@ -6,11 +6,19 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const imageController_1 = __importDefault(require("../controllers/imageController"));
 const upload_1 = __importDefault(require("../middleware/upload"));
+const path_1 = __importDefault(require("path"));
 // Создание экземпляра маршрутизатора
 const router = (0, express_1.Router)();
 /**
+ * Маршрут для отображения UI загрузки изображений
+ * GET /upload-ui
+ */
+router.get('/upload-ui', (req, res) => {
+    res.sendFile(path_1.default.join(__dirname, '../../public/index.html'));
+});
+/**
  * Маршрут для загрузки изображения
- * POST /api/images/upload
+ * POST /upload
  * multipart/form-data:
  *   - image: файл изображения
  *   - path: опциональный относительный путь для сохранения (например, "user/avatar")
@@ -18,8 +26,8 @@ const router = (0, express_1.Router)();
 router.post('/upload', upload_1.default.single('image'), imageController_1.default.uploadImage);
 /**
  * Маршрут для получения изображения по пути
- * GET /api/images/*
- * Путь после /api/images/ соответствует относительному пути к файлу
+ * GET /*
+ * Путь соответствует относительному пути к файлу
  */
 router.get('/*', imageController_1.default.getImage);
 exports.default = router;

@@ -1,3 +1,29 @@
-uploads/
+# Node.js зависимости
 node_modules/
-src/
+npm-debug.log
+yarn-error.log
+yarn-debug.log
+
+# Собранные файлы
+dist/
+
+# Логи
+logs/
+*.log
+
+# Директория с загруженными изображениями
+uploads/
+
+# Файлы среды разработки
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Файлы редактора
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store

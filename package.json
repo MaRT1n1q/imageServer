@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node dist/app.js",
     "dev": "ts-node src/app.ts",
-    "build": "tsc",
+    "build": "tsc && npm run copy-public",
+    "copy-public": "cp -r public dist/ || xcopy .\\public .\\dist\\public\\ /E /I",
     "test": "jest"
   },
   "keywords": ["image", "server", "upload", "nodejs"],
