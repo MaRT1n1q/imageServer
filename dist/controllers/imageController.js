@@ -50,6 +50,54 @@ class ImageController {
             }
         };
         /**
+         * Обработчик пакетной загрузки изображений
+         * @param req - объект запроса Express
+         * @param res - объект ответа Express
+         * @returns JSON-ответ с результатами пакетной загрузки
+         */
+        this.uploadMultipleImages = (req, res) => {
+            try {
+                // Проверяем наличие загруженных файлов
+                if (!req.files || !Array.isArray(req.files) || req.files.length === 0) {
+                    const errorResponse = {
+                        success: false,
+                        message: 'Файлы не были загружены'
+                    };
+                    return res.status(400).json(errorResponse);
+                }
+                const baseUrl = `${req.protocol}://${req.get('host')}`;
+                const results = [];
+                // Обрабатываем каждый загруженный файл
+                for (const file of req.files) {
+                    const relativePath = path_1.default.relative(config_1.default.uploadsDir, file.path).replace(/\\/g, '/');
+                    results.push({
+                        filename: file.filename,
+                        originalname: file.originalname,
+                        path: relativePath,
+                        url: `${baseUrl}/${relativePath}`,
+                        size: file.size,
+                        mimetype: file.mimetype
+                    });
+                }
+                // Формируем ответ
+                const response = {
+                    success: true,
+                    message: `Успешно загружено ${req.files.length} файлов`,
+                    files: results,
+                    totalCount: req.files.length
+                };
+                return res.status(201).json(response);
+            }
+            catch (error) {
+                console.error('Ошибка при пакетной загрузке файлов:', error);
+                const errorResponse = {
+                    success: false,
+                    message: 'Произошла ошибка при загрузке файлов'
+                };
+                return res.status(500).json(errorResponse);
+            }
+        };
+        /**
          * Получение изображения по пути
          * @param req - объект запроса Express
          * @param res - объект ответа Express

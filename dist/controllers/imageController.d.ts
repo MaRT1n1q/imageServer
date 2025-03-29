@@ -11,6 +11,13 @@ declare class ImageController {
      */
     uploadImage: (req: Request, res: Response) => Response;
     /**
+     * Обработчик пакетной загрузки изображений
+     * @param req - объект запроса Express
+     * @param res - объект ответа Express
+     * @returns JSON-ответ с результатами пакетной загрузки
+     */
+    uploadMultipleImages: (req: Request, res: Response) => Response;
+    /**
      * Получение изображения по пути
      * @param req - объект запроса Express
      * @param res - объект ответа Express

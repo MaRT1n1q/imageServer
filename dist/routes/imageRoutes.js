@@ -17,17 +17,31 @@ router.get('/upload-ui', (req, res) => {
     res.sendFile(path_1.default.join(__dirname, '../../public/index.html'));
 });
 /**
- * Маршрут для загрузки изображения
+ * Маршрут для отображения UI пакетной загрузки изображений
+ * GET /batch-upload-ui
+ */
+router.get('/batch-upload-ui', (req, res) => {
+    res.sendFile(path_1.default.join(__dirname, '../../public/batch-upload.html'));
+});
+/**
+ * Маршрут для загрузки одного изображения
  * POST /upload
  * multipart/form-data:
  *   - image: файл изображения
- *   - path: опциональный относительный путь для сохранения (например, "user/avatar")
+ *   - path: опциональный относительный путь для сохранения
  */
 router.post('/upload', upload_1.default.single('image'), imageController_1.default.uploadImage);
 /**
+ * Маршрут для пакетной загрузки изображений (до 10 файлов)
+ * POST /batch-upload
+ * multipart/form-data:
+ *   - images: файлы изображений (несколько)
+ *   - path: опциональный относительный путь для сохранения
+ */
+router.post('/batch-upload', upload_1.default.array('images', 10), imageController_1.default.uploadMultipleImages);
+/**
  * Маршрут для получения изображения по пути
  * GET /*
- * Путь соответствует относительному пути к файлу
  */
 router.get('/*', imageController_1.default.getImage);
 exports.default = router;
