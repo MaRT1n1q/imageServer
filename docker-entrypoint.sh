@@ -16,6 +16,18 @@ echo "Проверка доступности директорий для зап
 touch /app/uploads/.writetest && rm /app/uploads/.writetest
 touch /app/temp/.writetest && rm /app/temp/.writetest
 
+# Устанавливаем обработчик для корректного завершения процесса Node.js
+cleanup() {
+    echo "Получен сигнал остановки, завершаем работу..."
+    if [ -n "$NODE_PID" ] && kill -0 $NODE_PID 2>/dev/null; then
+        kill -SIGTERM $NODE_PID
+        wait $NODE_PID
+    fi
+    exit 0
+}
+
+trap cleanup SIGINT SIGTERM
+
 echo "Запуск приложения..."
 # Запускаем Node.js приложение в фоновом режиме
 node dist/app.js &
@@ -25,10 +37,11 @@ NODE_PID=$!
 wait_for_server() {
   echo "Ожидание запуска сервера..."
   for i in $(seq 1 30); do
-    if wget -q -O - http://localhost:3000/health > /dev/null 2>&1; then
+    if wget -q --spider http://localhost:3000/health 2>/dev/null; then
       echo "Сервер успешно запущен!"
       return 0
     fi
+    echo "Попытка $i: Сервер еще не готов..."
     sleep 1
   done
   echo "Сервер не запустился в течение 30 секунд."
@@ -42,5 +55,7 @@ if ! wait_for_server; then
   exit 1
 fi
 
-# Возвращаем pid процесса Node.js, чтобы Docker мог отслеживать его
+echo "Сервис полностью запущен и готов к работе"
+
+# Ждем завершения работы приложения
 wait $NODE_PID
