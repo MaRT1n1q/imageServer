@@ -1,7 +1,9 @@
 import { Router } from 'express';
 import imageController from '../controllers/imageController';
+import optimizerController from '../controllers/optimizerController';
 import upload from '../middleware/upload';
 import path from 'path';
+import config from '../config/config';
 
 // Создание экземпляра маршрутизатора
 const router = Router();
@@ -10,35 +12,30 @@ const router = Router();
  * Маршрут для отображения UI загрузки изображений
  * GET /upload-ui
  */
-router.get('/upload-ui', (req, res) => {
-  res.sendFile(path.join(__dirname, '../../public/index.html'));
+router.get(config.routes.uploadUI, (req, res) => {
+  res.sendFile(config.ui.uploadPage);
 });
 
 /**
- * Маршрут для отображения UI пакетной загрузки изображений
- * GET /batch-upload-ui
- */
-router.get('/batch-upload-ui', (req, res) => {
-  res.sendFile(path.join(__dirname, '../../public/batch-upload.html'));
-});
-
-/**
- * Маршрут для загрузки одного изображения
+ * Маршрут для загрузки одного или нескольких изображений
  * POST /upload
  * multipart/form-data: 
- *   - image: файл изображения
+ *   - image или images: файл(ы) изображения
  *   - path: опциональный относительный путь для сохранения
  */
-router.post('/upload', upload.single('image'), imageController.uploadImage);
+router.post(config.routes.uploadAPI, upload.any(), imageController.uploadImages);
 
 /**
- * Маршрут для пакетной загрузки изображений (до 10 файлов)
- * POST /batch-upload
- * multipart/form-data: 
- *   - images: файлы изображений (несколько)
- *   - path: опциональный относительный путь для сохранения
+ * Маршрут для запуска оптимизации всех изображений
+ * GET /optimize?path=optional/subdirectory
  */
-router.post('/batch-upload', upload.array('images', 10), imageController.uploadMultipleImages);
+router.get(config.routes.optimize, optimizerController.optimizeAllImages);
+
+/**
+ * Маршрут для оптимизации отдельного изображения
+ * POST /optimize/:path*
+ */
+router.post(`${config.routes.optimize}/:path*`, optimizerController.optimizeSingleImage);
 
 /**
  * Маршрут для получения изображения по пути

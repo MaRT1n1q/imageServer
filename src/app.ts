@@ -3,6 +3,7 @@ import path from 'path';
 import fs from 'fs';
 import config from './config/config';
 import imageRoutes from './routes/imageRoutes';
+import schedulerService from './services/schedulerService';
 
 // Создаем экземпляр приложения Express
 const app = express();
@@ -44,14 +45,14 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
     if (err.code === 'LIMIT_FILE_SIZE') {
       return res.status(400).json({
         success: false,
-        message: `Размер файла превышает максимально допустимый (${config.maxFileSize / (1024 * 1024)} МБ)`
+        message: config.messages.fileTooLarge.replace('%d', (config.maxFileSize / (1024 * 1024)).toString())
       });
     }
     
     // Другие ошибки
     return res.status(500).json({
       success: false,
-      message: 'Произошла ошибка при загрузке файла'
+      message: config.messages.uploadError
     });
   }
   next();
@@ -61,20 +62,45 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
 app.use('/', imageRoutes);
 
 // Редирект с корня сайта на UI загрузки
-app.get('/', (req: Request, res: Response) => {
-  res.redirect('/upload-ui');
+app.get(config.routes.root, (req: Request, res: Response) => {
+  res.redirect(config.routes.uploadUI);
 });
 
 // Простой маршрут для проверки доступности сервера
-app.get('/health', (req: Request, res: Response) => {
+app.get(config.routes.health, (req: Request, res: Response) => {
   res.status(200).json({ status: 'UP' });
 });
+
+// Запуск планировщика оптимизации изображений, если он включен в конфигурации
+if (config.optimizer.scheduledOptimization) {
+  schedulerService.startOptimizationScheduler();
+}
 
 // Запуск сервера
 app.listen(config.port, () => {
   console.log(`Сервер запущен на порту ${config.port}`);
   console.log(`Путь для загрузки изображений: ${config.uploadsDir}`);
-  console.log(`UI доступен по адресу: http://localhost:${config.port}/upload-ui`);
+  console.log(`UI доступен по адресу: http://localhost:${config.port}${config.routes.uploadUI}`);
+  
+  if (config.optimizer.optimizeOnUpload) {
+    console.log('Автоматическая оптимизация изображений при загрузке: ВКЛЮЧЕНА');
+  }
+  
+  if (config.optimizer.scheduledOptimization) {
+    console.log(`Плановая оптимизация изображений: ВКЛЮЧЕНА (расписание: ${config.optimizer.optimizationSchedule})`);
+  }
+});
+
+// Корректное завершение работы приложения
+process.on('SIGINT', () => {
+  console.log('Завершение работы сервера...');
+  
+  // Останавливаем планировщик
+  if (config.optimizer.scheduledOptimization) {
+    schedulerService.stopOptimizationScheduler();
+  }
+  
+  process.exit(0);
 });
 
 export default app;

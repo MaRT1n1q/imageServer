@@ -15,6 +15,99 @@ interface Config {
   
   // Допустимые типы файлов
   allowedMimeTypes: string[];
+  
+  // Максимальное количество файлов для загрузки за раз
+  maxFileCount: number;
+  
+  // Пути для маршрутов
+  routes: {
+    // Базовый URL для UI загрузки изображений
+    uploadUI: string;
+    
+    // URL для API загрузки изображений
+    uploadAPI: string;
+    
+    // URL для получения информации о сервере
+    info: string;
+    
+    // Проверка состояния сервера
+    health: string;
+    
+    // Корневой маршрут
+    root: string;
+    
+    // URL для запуска оптимизации изображений
+    optimize: string;
+  };
+  
+  // Пути к файлам UI
+  ui: {
+    // Путь к файлу HTML для загрузки изображений
+    uploadPage: string;
+  };
+  
+  // Настройки оптимизатора изображений
+  optimizer: {
+    // Качество JPEG изображений (1-100)
+    jpegQuality: number;
+    
+    // Качество PNG изображений (1-100)
+    pngQuality: number;
+    
+    // Качество WebP изображений (1-100)
+    webpQuality: number;
+    
+    // Автоматическая оптимизация после загрузки
+    optimizeOnUpload: boolean;
+    
+    // Планировщик оптимизации (cron)
+    scheduledOptimization: boolean;
+    
+    // Расписание запуска оптимизации (в формате cron)
+    optimizationSchedule: string;
+  };
+  
+  // Сообщения для UI и API
+  messages: {
+    // Сообщение об успешной загрузке одного файла
+    uploadSuccess: string;
+    
+    // Шаблон сообщения об успешной загрузке нескольких файлов
+    multipleUploadSuccess: string;
+    
+    // Сообщение об отсутствии файлов для загрузки
+    noFilesUploaded: string;
+    
+    // Сообщение о необходимости выбрать хотя бы один файл
+    pleaseSelectFile: string;
+    
+    // Сообщение о превышении максимального количества файлов
+    tooManyFiles: string;
+    
+    // Сообщение о превышении размера файла
+    fileTooLarge: string;
+    
+    // Сообщение об ошибке при загрузке
+    uploadError: string;
+    
+    // Сообщение о недопустимом пути загрузки
+    invalidPath: string;
+    
+    // Сообщение о запрете доступа
+    accessDenied: string;
+    
+    // Сообщение о том, что изображение не найдено
+    imageNotFound: string;
+    
+    // Сообщение о серверной ошибке
+    serverError: string;
+    
+    // Сообщение об успешной оптимизации
+    optimizationSuccess: string;
+    
+    // Сообщение об ошибке при оптимизации
+    optimizationError: string;
+  };
 }
 
 // Корневой путь проекта
@@ -25,7 +118,46 @@ const config: Config = {
   port: Number(process.env.PORT) || 3000,
   uploadsDir: path.join(rootDir, 'uploads'),
   maxFileSize: 5 * 1024 * 1024, // 5MB
-  allowedMimeTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+  allowedMimeTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp'],
+  maxFileCount: 10,
+  
+  routes: {
+    uploadUI: '/upload-ui',
+    uploadAPI: '/upload',
+    info: '/info',
+    health: '/health',
+    root: '/',
+    optimize: '/optimize'
+  },
+  
+  ui: {
+    uploadPage: path.join(rootDir, 'public/index.html')
+  },
+  
+  optimizer: {
+    jpegQuality: 75,
+    pngQuality: 80,
+    webpQuality: 75,
+    optimizeOnUpload: true,
+    scheduledOptimization: false,
+    optimizationSchedule: '0 3 * * *' // Каждый день в 3:00
+  },
+  
+  messages: {
+    uploadSuccess: 'Файл успешно загружен',
+    multipleUploadSuccess: 'Успешно загружено %d файлов',
+    noFilesUploaded: 'Файл(ы) не был(и) загружен(ы)',
+    pleaseSelectFile: 'Пожалуйста, выберите файл для загрузки',
+    tooManyFiles: 'Максимально можно загрузить %d файлов за раз',
+    fileTooLarge: 'Размер файла превышает максимально допустимый (%d МБ)',
+    uploadError: 'Произошла ошибка при загрузке файлов',
+    invalidPath: 'Недопустимый путь загрузки',
+    accessDenied: 'Доступ запрещен',
+    imageNotFound: 'Изображение не найдено',
+    serverError: 'Произошла ошибка при получении изображения',
+    optimizationSuccess: 'Оптимизация завершена успешно. Обработано: %d, оптимизировано: %d, ошибок: %d',
+    optimizationError: 'Ошибка при оптимизации изображений'
+  }
 };
 
 export default config;

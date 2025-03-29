@@ -27,7 +27,7 @@ const storage = multer.diskStorage({
     
     // Проверяем, что путь находится внутри основной директории загрузки
     if (!uploadPath.startsWith(config.uploadsDir)) {
-      return cb(new Error('Недопустимый путь загрузки'), '');
+      return cb(new Error(config.messages.invalidPath), '');
     }
     
     ensureDirectoryExists(uploadPath);
@@ -59,12 +59,14 @@ const fileFilter = (req: Request, file: Express.Multer.File, cb: multer.FileFilt
 
 /**
  * Настройка middleware multer для загрузки изображений
+ * Поддерживает как одиночные, так и множественные загрузки
  */
 const upload = multer({
   storage,
   fileFilter,
   limits: {
-    fileSize: config.maxFileSize
+    fileSize: config.maxFileSize,
+    files: config.maxFileCount
   }
 });
 

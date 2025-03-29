@@ -12,7 +12,7 @@
             padding: 20px;
             line-height: 1.6;
         }
-        h1 {
+        h1, h2 {
             color: #333;
             text-align: center;
         }
@@ -45,6 +45,7 @@
             border-radius: 4px;
             cursor: pointer;
             font-size: 16px;
+            width: 100%;
         }
         button:hover {
             background-color: #45a049;
@@ -99,6 +100,89 @@
         .nav-links a:hover {
             text-decoration: underline;
         }
+        .upload-mode {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .upload-mode button {
+            background-color: #f0f0f0;
+            color: #333;
+            margin: 0 5px;
+            width: auto;
+        }
+        .upload-mode button.active {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .drop-area {
+            border: 2px dashed #ccc;
+            border-radius: 5px;
+            padding: 50px;
+            text-align: center;
+            margin-bottom: 15px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .drop-area.highlight {
+            background-color: #e9f7ef;
+            border-color: #4CAF50;
+        }
+        .preview {
+            margin-top: 15px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .preview-item {
+            position: relative;
+            width: 100px;
+            height: 100px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .preview-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .progress-bar {
+            height: 10px;
+            background-color: #f0f0f0;
+            border-radius: 5px;
+            margin-top: 15px;
+            margin-bottom: 15px;
+            overflow: hidden;
+            position: relative;
+        }
+        .progress {
+            height: 100%;
+            background-color: #4CAF50;
+            width: 0;
+            transition: width 0.3s;
+        }
+        .gallery {
+            margin-top: 20px;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            grid-gap: 15px;
+        }
+        .gallery-item {
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 10px;
+            text-align: center;
+        }
+        .gallery-item img {
+            max-width: 100%;
+            max-height: 150px;
+            object-fit: cover;
+        }
+        .file-info {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
     </style>
 </head>
 <body>
@@ -106,20 +190,40 @@
         <h1>Загрузка изображений</h1>
         
         <div class="nav-links">
-            <a href="/upload-ui">Загрузка одного файла</a> | 
-            <a href="/batch-upload-ui">Пакетная загрузка</a> | 
+            <a href="/upload-ui">Загрузка изображений</a> | 
             <a href="/info">Информация</a>
         </div>
         
+        <div class="upload-mode">
+            <button id="singleModeBtn" class="active">Один файл</button>
+            <button id="multipleModeBtn">Несколько файлов</button>
+        </div>
+        
         <form id="uploadForm" enctype="multipart/form-data">
-            <div class="form-group">
-                <label for="image">Выберите изображение:</label>
-                <input type="file" id="image" name="image" accept="image/*" required>
+            <!-- Режим одного файла -->
+            <div id="singleUploadMode">
+                <div class="form-group">
+                    <label for="image">Выберите изображение:</label>
+                    <input type="file" id="image" name="image" accept="image/*">
+                </div>
+            </div>
+            
+            <!-- Режим нескольких файлов -->
+            <div id="multipleUploadMode" style="display:none;">
+                <div class="drop-area" id="dropArea">
+                    <p>Перетащите изображения сюда или нажмите для выбора файлов</p>
+                    <input type="file" id="images" name="images" accept="image/*" multiple style="display: none;">
+                </div>
+                <div class="preview" id="preview"></div>
             </div>
             
             <div class="form-group">
                 <label for="path">Путь для загрузки (опционально):</label>
                 <input type="text" id="path" name="path" placeholder="например, users/avatars">
+            </div>
+            
+            <div class="progress-bar" id="progressBar" style="display: none;">
+                <div class="progress" id="progress"></div>
             </div>
             
             <button type="submit">Загрузить</button>
@@ -132,49 +236,249 @@
             <img id="previewImage" src="" alt="Предпросмотр">
             <div class="url-info" id="imageUrl"></div>
         </div>
+        
+        <div id="gallery" class="gallery"></div>
     </div>
 
     <script>
-        document.getElementById('uploadForm').addEventListener('submit', function(e) {
+        const uploadForm = document.getElementById('uploadForm');
+        const resultDiv = document.getElementById('result');
+        const imagePreviewDiv = document.getElementById('imagePreview');
+        const previewImage = document.getElementById('previewImage');
+        const imageUrlDiv = document.getElementById('imageUrl');
+        const gallery = document.getElementById('gallery');
+        const progressBar = document.getElementById('progressBar');
+        const progress = document.getElementById('progress');
+        const singleModeBtn = document.getElementById('singleModeBtn');
+        const multipleModeBtn = document.getElementById('multipleModeBtn');
+        const singleUploadMode = document.getElementById('singleUploadMode');
+        const multipleUploadMode = document.getElementById('multipleUploadMode');
+        
+        const dropArea = document.getElementById('dropArea');
+        const fileInputMultiple = document.getElementById('images');
+        const preview = document.getElementById('preview');
+        const fileInputSingle = document.getElementById('image');
+        
+        let isMultipleMode = false;
+        
+        // Переключение между режимами загрузки
+        singleModeBtn.addEventListener('click', () => {
+            isMultipleMode = false;
+            singleModeBtn.classList.add('active');
+            multipleModeBtn.classList.remove('active');
+            singleUploadMode.style.display = 'block';
+            multipleUploadMode.style.display = 'none';
+        });
+        
+        multipleModeBtn.addEventListener('click', () => {
+            isMultipleMode = true;
+            multipleModeBtn.classList.add('active');
+            singleModeBtn.classList.remove('active');
+            multipleUploadMode.style.display = 'block';
+            singleUploadMode.style.display = 'none';
+        });
+        
+        // Выбор файлов через drop area
+        dropArea.addEventListener('click', () => {
+            fileInputMultiple.click();
+        });
+        
+        // Обработка перетаскивания файлов
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, preventDefaults, false);
+        });
+        
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+        
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropArea.addEventListener(eventName, () => {
+                dropArea.classList.add('highlight');
+            }, false);
+        });
+        
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, () => {
+                dropArea.classList.remove('highlight');
+            }, false);
+        });
+        
+        // Обработка дропа файлов
+        dropArea.addEventListener('drop', (e) => {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            fileInputMultiple.files = files;
+            updatePreview();
+        });
+        
+        // Обновление превью при выборе файлов
+        fileInputMultiple.addEventListener('change', updatePreview);
+        
+        function updatePreview() {
+            preview.innerHTML = '';
+            if (fileInputMultiple.files) {
+                for (let i = 0; i < fileInputMultiple.files.length; i++) {
+                    const file = fileInputMultiple.files[i];
+                    if (!file.type.startsWith('image/')) continue;
+        
+                    const previewItem = document.createElement('div');
+                    previewItem.className = 'preview-item';
+                    
+                    const img = document.createElement('img');
+                    img.src = URL.createObjectURL(file);
+                    previewItem.appendChild(img);
+                    
+                    preview.appendChild(previewItem);
+                }
+            }
+        }
+        
+        // Обработка отправки формы
+        uploadForm.addEventListener('submit', function(e) {
             e.preventDefault();
             
-            const formData = new FormData(this);
-            const resultDiv = document.getElementById('result');
-            const imagePreviewDiv = document.getElementById('imagePreview');
-            const previewImage = document.getElementById('previewImage');
-            const imageUrlDiv = document.getElementById('imageUrl');
+            const formData = new FormData();
+            const pathInput = document.getElementById('path');
             
-            // Скрываем предыдущие результаты
+            // Добавляем путь, если он указан
+            if (pathInput.value) {
+                formData.append('path', pathInput.value);
+            }
+            
+            // В зависимости от режима добавляем файлы в formData
+            if (isMultipleMode) {
+                if (!fileInputMultiple.files || fileInputMultiple.files.length === 0) {
+                    showResult('Пожалуйста, выберите хотя бы один файл для загрузки', false);
+                    return;
+                }
+                
+                if (fileInputMultiple.files.length > 10) {
+                    showResult('Максимально можно загрузить 10 файлов за раз', false);
+                    return;
+                }
+                
+                for (let i = 0; i < fileInputMultiple.files.length; i++) {
+                    formData.append('images', fileInputMultiple.files[i]);
+                }
+            } else {
+                if (!fileInputSingle.files || fileInputSingle.files.length === 0) {
+                    showResult('Пожалуйста, выберите файл для загрузки', false);
+                    return;
+                }
+                
+                formData.append('image', fileInputSingle.files[0]);
+            }
+            
+            // Скрываем предыдущие результаты и очищаем галерею
             resultDiv.style.display = 'none';
             imagePreviewDiv.style.display = 'none';
+            gallery.innerHTML = '';
             
-            fetch('/upload', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                resultDiv.style.display = 'block';
-                
-                if (data.success) {
-                    resultDiv.className = 'result success';
-                    resultDiv.innerHTML = `<p>${data.message}</p>`;
-                    
-                    // Показываем предпросмотр изображения
-                    previewImage.src = data.url;
-                    imageUrlDiv.innerHTML = `<p>URL изображения:</p><code>${data.url}</code>`;
-                    imagePreviewDiv.style.display = 'block';
-                } else {
-                    resultDiv.className = 'result error';
-                    resultDiv.innerHTML = `<p>Ошибка: ${data.message}</p>`;
+            // Показываем прогресс-бар
+            progressBar.style.display = 'block';
+            progress.style.width = '0%';
+            const uploadBtn = document.querySelector('button[type="submit"]');
+            uploadBtn.disabled = true;
+            
+            const xhr = new XMLHttpRequest();
+            
+            xhr.open('POST', '/upload');
+            
+            xhr.upload.addEventListener('progress', (e) => {
+                if (e.lengthComputable) {
+                    const percentComplete = (e.loaded / e.total) * 100;
+                    progress.style.width = percentComplete + '%';
                 }
-            })
-            .catch(error => {
-                resultDiv.style.display = 'block';
-                resultDiv.className = 'result error';
-                resultDiv.innerHTML = `<p>Ошибка при загрузке: ${error.message}</p>`;
             });
+            
+            xhr.onload = function() {
+                uploadBtn.disabled = false;
+                progressBar.style.display = 'none';
+                
+                if (xhr.status === 201) {
+                    const response = JSON.parse(xhr.responseText);
+                    
+                    if (isMultipleMode || (response.files && response.files.length > 1)) {
+                        // Если это множественная загрузка или вернулось несколько файлов
+                        showResult(`${response.message}`, true);
+                        displayGallery(response.files);
+                    } else {
+                        // Если это одиночная загрузка
+                        showResult(`${response.message}`, true);
+                        
+                        // Показываем предпросмотр изображения
+                        previewImage.src = response.url;
+                        imageUrlDiv.innerHTML = `<p>URL изображения:</p><code>${response.url}</code>`;
+                        imagePreviewDiv.style.display = 'block';
+                    }
+                } else {
+                    try {
+                        const errorData = JSON.parse(xhr.responseText);
+                        showResult(`Ошибка: ${errorData.message}`, false);
+                    } catch (e) {
+                        showResult(`Ошибка загрузки. Статус: ${xhr.status}`, false);
+                    }
+                }
+            };
+            
+            xhr.onerror = function() {
+                uploadBtn.disabled = false;
+                progressBar.style.display = 'none';
+                showResult('Ошибка сети при загрузке файлов', false);
+            };
+            
+            xhr.send(formData);
         });
+        
+        // Отображение результата
+        function showResult(message, isSuccess) {
+            resultDiv.style.display = 'block';
+            resultDiv.className = isSuccess ? 'result success' : 'result error';
+            resultDiv.innerHTML = `<p>${message}</p>`;
+        }
+        
+        // Отображение галереи загруженных изображений
+        function displayGallery(files) {
+            gallery.innerHTML = '<h2>Загруженные изображения</h2>';
+            
+            files.forEach(file => {
+                const item = document.createElement('div');
+                item.className = 'gallery-item';
+                
+                const img = document.createElement('img');
+                img.src = file.url;
+                img.alt = file.originalname || file.filename;
+                
+                const fileInfo = document.createElement('div');
+                fileInfo.className = 'file-info';
+                fileInfo.textContent = file.size ? `${formatBytes(file.size)}` : '';
+                
+                const urlInfo = document.createElement('div');
+                urlInfo.className = 'url-info';
+                urlInfo.textContent = file.url;
+                
+                item.appendChild(img);
+                item.appendChild(fileInfo);
+                item.appendChild(urlInfo);
+                
+                gallery.appendChild(item);
+            });
+        }
+        
+        // Форматирование размера файла
+        function formatBytes(bytes, decimals = 2) {
+            if (bytes === 0) return '0 Bytes';
+            
+            const k = 1024;
+            const dm = decimals < 0 ? 0 : decimals;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+            
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+        }
     </script>
 </body>
 </html>
