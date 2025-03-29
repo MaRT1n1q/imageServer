@@ -5,7 +5,7 @@ FROM node:lts-alpine
 WORKDIR /app
 
 # Установка зависимостей для Sharp и необходимых утилит
-RUN apk add --no-cache python3 make g++ vips-dev
+RUN apk add --no-cache python3 make g++ vips-dev bash coreutils
 
 # Копируем файлы package.json и package-lock.json
 COPY package*.json ./
@@ -24,8 +24,23 @@ RUN npm run build
 RUN mkdir -p /app/uploads /app/temp && \
     chmod 777 /app/uploads /app/temp
 
+# Добавляем скрипт для автоматического исправления прав доступа
+COPY <<-EOT /docker-entrypoint.sh
+#!/bin/sh
+set -e
+
+# Проверяем права на директории
+chmod -R 777 /app/uploads /app/temp
+
+# Запускаем приложение
+exec "$@"
+EOT
+
+RUN chmod +x /docker-entrypoint.sh
+
 # Открываем порт
 EXPOSE 3000
 
-# Запускаем приложение
+# Запускаем приложение через entry point скрипт
+ENTRYPOINT ["/docker-entrypoint.sh"]
 CMD ["node", "dist/app.js"]

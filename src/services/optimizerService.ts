@@ -219,6 +219,43 @@ class OptimizerService {
   }
 
   /**
+   * Копирует файл через потоки, безопасно для использования между разными файловыми системами
+   * @param sourcePath Путь к исходному файлу
+   * @param destinationPath Путь назначения
+   * @returns Promise<boolean> - успешность копирования
+   */
+  private async copyFile(sourcePath: string, destinationPath: string): Promise<boolean> {
+    try {
+      console.log(`Копирование файла: ${sourcePath} -> ${destinationPath}`);
+      
+      const readStream = fs.createReadStream(sourcePath);
+      const writeStream = fs.createWriteStream(destinationPath);
+      
+      return new Promise<boolean>((resolve, reject) => {
+        readStream.on('error', (err) => {
+          console.error(`Ошибка при чтении файла ${sourcePath}:`, err);
+          reject(false);
+        });
+        
+        writeStream.on('error', (err) => {
+          console.error(`Ошибка при записи файла ${destinationPath}:`, err);
+          reject(false);
+        });
+        
+        writeStream.on('finish', () => {
+          console.log(`Файл успешно скопирован: ${destinationPath}`);
+          resolve(true);
+        });
+        
+        readStream.pipe(writeStream);
+      });
+    } catch (error) {
+      console.error(`Ошибка при копировании файла ${sourcePath} в ${destinationPath}:`, error);
+      return false;
+    }
+  }
+
+  /**
    * Оптимизирует изображение
    * @param filePath Путь к файлу для оптимизации
    * @returns Promise<boolean> - успешность оптимизации
@@ -351,46 +388,104 @@ class OptimizerService {
           return true;
         }
         
-        try {
-          // Удаляем оригинальный файл
-          await fsPromises.unlink(filePath);
-          
-          // Переименовываем временный файл в оригинальный
-          await fsPromises.rename(tempPath, filePath);
-        } catch (error) {
-          console.error(`Ошибка при замене файла ${filePath}:`, error);
-          
-          // Проверяем, является ли ошибка EXDEV (разные файловые системы)
-          const isExdevError = error instanceof Error && 
-                              'code' in error && 
-                              (error as any).code === 'EXDEV';
-          
-          // Используем альтернативный метод копирования через потоки
+        // Определяем, нужно ли использовать потоковое копирование вместо rename
+        // Это особенно важно в контейнерах Docker, где директории могут быть на разных устройствах
+        const useStreamCopy = config.optimizer.largeImageHandling.forceStreamCopy || false;
+        
+        if (useStreamCopy) {
+          // Сначала создаем резервную копию оригинального файла
+          const backupPath = `${filePath}.backup`;
           try {
-            console.log(`Используем альтернативный метод копирования для файла ${tempPath} -> ${filePath}`);
+            // Копируем оригинальный файл как бэкап
+            await this.copyFile(filePath, backupPath);
             
-            // Создаем потоки чтения и записи
-            const readStream = fs.createReadStream(tempPath);
-            const writeStream = fs.createWriteStream(filePath);
+            // Копируем оптимизированный файл на место оригинального
+            const copySuccess = await this.copyFile(tempPath, filePath);
             
-            // Копируем файл через потоки
-            await new Promise<void>((resolve, reject) => {
-              readStream.on('error', reject);
-              writeStream.on('error', reject);
-              writeStream.on('finish', resolve);
-              readStream.pipe(writeStream);
-            });
-            
-            // Удаляем временный файл после копирования
-            await fsPromises.unlink(tempPath).catch(err => {
-              console.warn(`Не удалось удалить временный файл ${tempPath}:`, err);
-            });
-            
-            // Если код дошел до этой точки, копирование успешно
-            console.log(`Успешно скопирован файл с помощью потоков: ${filePath}`);
+            if (copySuccess) {
+              // Если копирование успешно, удаляем бэкап и временный файл
+              await Promise.all([
+                fsPromises.unlink(backupPath).catch(err => {
+                  console.warn(`Не удалось удалить резервную копию ${backupPath}:`, err);
+                }),
+                fsPromises.unlink(tempPath).catch(err => {
+                  console.warn(`Не удалось удалить временный файл ${tempPath}:`, err);
+                })
+              ]);
+              
+              console.log(`Успешно заменен файл с использованием потокового копирования: ${filePath}`);
+            } else {
+              // Если копирование не удалось, восстанавливаем из бэкапа
+              console.error(`Не удалось скопировать оптимизированный файл, восстанавливаем из бэкапа: ${backupPath}`);
+              await this.copyFile(backupPath, filePath);
+              await fsPromises.unlink(backupPath).catch(() => {});
+              await fsPromises.unlink(tempPath).catch(() => {});
+              return false;
+            }
           } catch (copyError) {
-            console.error(`Ошибка при копировании файла ${tempPath} в ${filePath}:`, copyError);
+            console.error(`Ошибка при потоковом копировании файла ${tempPath} в ${filePath}:`, copyError);
+            
+            // Пытаемся удалить все временные файлы
+            try {
+              if (fs.existsSync(backupPath)) {
+                await fsPromises.unlink(backupPath);
+              }
+              if (fs.existsSync(tempPath)) {
+                await fsPromises.unlink(tempPath);
+              }
+            } catch (cleanupError) {
+              console.warn(`Ошибка при очистке временных файлов:`, cleanupError);
+            }
+            
             return false;
+          }
+        } else {
+          try {
+            // Стандартный подход: удалить оригинал и переименовать временный файл
+            await fsPromises.unlink(filePath);
+            await fsPromises.rename(tempPath, filePath);
+          } catch (error) {
+            console.error(`Ошибка при замене файла ${filePath}:`, error);
+            
+            // Проверяем, является ли ошибка EXDEV (разные файловые системы)
+            const isExdevError = error instanceof Error && 
+                                'code' in error && 
+                                (error as any).code === 'EXDEV';
+            
+            // При ошибке EXDEV используем потоковое копирование
+            if (isExdevError) {
+              console.log(`Обнаружена ошибка EXDEV, используем потоковое копирование для ${tempPath} -> ${filePath}`);
+              
+              // Пробуем снова создать файл (возможно он был удален)
+              const writeFileSuccess = await this.copyFile(tempPath, filePath);
+              
+              if (!writeFileSuccess) {
+                console.error(`Не удалось скопировать файл после ошибки EXDEV: ${tempPath} -> ${filePath}`);
+                return false;
+              }
+              
+              // Удаляем временный файл
+              try {
+                await fsPromises.unlink(tempPath);
+              } catch (unlinkError) {
+                console.warn(`Не удалось удалить временный файл ${tempPath}:`, unlinkError);
+              }
+            } else {
+              // Если это другая ошибка, пробуем альтернативный метод
+              console.warn(`Пробуем альтернативный метод копирования для ${tempPath} -> ${filePath}`);
+              
+              try {
+                // Копируем содержимое
+                const data = await fsPromises.readFile(tempPath);
+                await fsPromises.writeFile(filePath, data);
+                
+                // Удаляем временный файл
+                await fsPromises.unlink(tempPath).catch(() => {});
+              } catch (alternativeError) {
+                console.error(`Альтернативный метод копирования также не удался:`, alternativeError);
+                return false;
+              }
+            }
           }
         }
         
