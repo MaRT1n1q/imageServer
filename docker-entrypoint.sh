@@ -37,11 +37,15 @@ NODE_PID=$!
 wait_for_server() {
   echo "Ожидание запуска сервера..."
   for i in $(seq 1 30); do
-    if wget -q --spider http://localhost:3000/health 2>/dev/null; then
+    # Более надежный способ проверки доступности сервера
+    health_response=$(wget -q -O - http://localhost:3000/health 2>/dev/null || echo "FAILED")
+    
+    if [ "$health_response" != "FAILED" ] && [ "$health_response" != "" ]; then
       echo "Сервер успешно запущен!"
+      echo "Ответ от /health: $health_response"
       return 0
     fi
-    echo "Попытка $i: Сервер еще не готов..."
+    echo "Попытка $i из 30: Сервер еще не готов..."
     sleep 1
   done
   echo "Сервер не запустился в течение 30 секунд."

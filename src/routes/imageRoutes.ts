@@ -9,6 +9,20 @@ import config from '../config/config';
 const router = Router();
 
 /**
+ * Маршрут для проверки работоспособности сервера
+ * GET /health
+ */
+router.get(config.routes.health, (req, res) => {
+  res.status(200).json({ 
+    status: 'UP',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    memoryUsage: process.memoryUsage(),
+    version: process.env.npm_package_version || '1.0.0'
+  });
+});
+
+/**
  * Маршрут для отображения UI загрузки изображений
  * GET /upload-ui
  */

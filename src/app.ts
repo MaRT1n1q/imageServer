@@ -74,16 +74,6 @@ app.get(config.routes.root, (req: Request, res: Response) => {
   res.redirect(config.routes.uploadUI);
 });
 
-// Простой маршрут для проверки доступности сервера
-// Добавляем дополнительную проверку для гарантии быстрого ответа
-app.get(config.routes.health, (req: Request, res: Response) => {
-  res.status(200).json({ 
-    status: 'UP',
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime()
-  });
-});
-
 // Запуск планировщика оптимизации изображений, если он включен в конфигурации
 if (config.optimizer.scheduledOptimization) {
   schedulerService.startOptimizationScheduler();
