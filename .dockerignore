@@ -1,0 +1,16 @@
+node_modules
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+dist
+.git
+.gitignore
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+*.md
+!README.md
+uploads/*
+temp/*
