@@ -155,7 +155,8 @@ const rootDir = path.resolve(__dirname, '../..');
 
 // Основная конфигурация
 const config: Config = {
-  port: Number(process.env.PORT) || 3000,
+  port: Number(process.env.PORT) || 3001, // Изменяем порт по умолчанию на 3001, но при этом
+                                         // используем переменную окружения PORT, если она задана
   uploadsDir: path.join(rootDir, 'uploads'),
   maxFileSize: 5 * 1024 * 1024, // 5MB
   allowedMimeTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp'],

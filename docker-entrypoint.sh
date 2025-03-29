@@ -37,11 +37,13 @@ NODE_PID=$!
 wait_for_server() {
   echo "Ожидание запуска сервера..."
   for i in $(seq 1 30); do
+    # Используем переменную PORT из среды, или 3000 по умолчанию
+    LOCAL_PORT=${PORT:-3000}
     # Более надежный способ проверки доступности сервера
-    health_response=$(wget -q -O - http://localhost:3000/health 2>/dev/null || echo "FAILED")
+    health_response=$(wget -q -O - http://localhost:$LOCAL_PORT/health 2>/dev/null || echo "FAILED")
     
     if [ "$health_response" != "FAILED" ] && [ "$health_response" != "" ]; then
-      echo "Сервер успешно запущен!"
+      echo "Сервер успешно запущен на порту $LOCAL_PORT!"
       echo "Ответ от /health: $health_response"
       return 0
     fi
