@@ -33,7 +33,10 @@ const storage = multer.diskStorage({
       return cb(new Error(config.messages.invalidPath), '');
     }
     
+    // Создаем директорию, если она не существует
     ensureDirectoryExists(uploadPath);
+    
+    console.log(`Загрузка в директорию: ${uploadPath}`);
     cb(null, uploadPath);
   },
   filename: (req: Request, file: Express.Multer.File, cb) => {

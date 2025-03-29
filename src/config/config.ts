@@ -107,6 +107,24 @@ interface Config {
     };
   };
   
+  // Кастомные пути для API и соответствующих директорий
+  customPaths: {
+    // Массив объектов, описывающих кастомные пути
+    paths: Array<{
+      // API путь (например, /image/user/citizen)
+      route: string;
+      
+      // Соответствующая директория для сохранения (относительно uploadsDir)
+      directory: string;
+      
+      // Описание назначения этого пути (опционально)
+      description?: string;
+    }>;
+    
+    // Включена ли поддержка кастомных путей
+    enabled: boolean;
+  };
+
   // Сообщения для UI и API
   messages: {
     // Сообщение об успешной загрузке одного файла
@@ -204,6 +222,33 @@ const config: Config = {
         maxDimension: 4000 // Максимальный размер 4000px
       }
     }
+  },
+  
+  // Настройки кастомных путей
+  customPaths: {
+    enabled: true,
+    paths: [
+      {
+        route: '/image/user/citizen',
+        directory: 'users/citizens',
+        description: 'Изображения граждан'
+      },
+      {
+        route: '/image/user/avatar',
+        directory: 'users/avatars',
+        description: 'Аватары пользователей'
+      },
+      {
+        route: '/image/product',
+        directory: 'products',
+        description: 'Изображения товаров'
+      },
+      {
+        route: '/image/banner',
+        directory: 'marketing/banners',
+        description: 'Баннеры для маркетинговых кампаний'
+      }
+    ]
   },
   
   messages: {

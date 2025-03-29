@@ -89,6 +89,15 @@ const startServer = () => {
     console.log(`Путь для загрузки изображений: ${config.uploadsDir}`);
     console.log(`UI доступен по адресу: http://localhost:${config.port}${config.routes.uploadUI}`);
     
+    // Логирование кастомных путей
+    if (config.customPaths.enabled && config.customPaths.paths.length > 0) {
+      console.log('\nДоступные кастомные пути:');
+      config.customPaths.paths.forEach(customPath => {
+        console.log(`- ${customPath.route} -> ${path.join(config.uploadsDir, customPath.directory)} (${customPath.description || 'Нет описания'})`);
+      });
+      console.log(''); // Пустая строка для разделения
+    }
+    
     if (config.optimizer.optimizeOnUpload) {
       console.log('Автоматическая оптимизация изображений при загрузке: ВКЛЮЧЕНА');
     }

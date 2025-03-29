@@ -4,6 +4,7 @@ import optimizerController from '../controllers/optimizerController';
 import healthController from '../controllers/healthController';
 import upload from '../middleware/upload';
 import config from '../config/config';
+import path from 'path';
 
 // Создание экземпляра маршрутизатора
 const router = Router();
@@ -42,6 +43,37 @@ router.get(config.routes.uploadUI, (req, res) => {
  *   - path: опциональный относительный путь для сохранения
  */
 router.post(config.routes.uploadAPI, upload.any(), imageController.uploadImages);
+
+// === Регистрация кастомных путей ===
+if (config.customPaths.enabled && config.customPaths.paths.length > 0) {
+  // Добавляем маршруты для каждого кастомного пути
+  config.customPaths.paths.forEach(customPath => {
+    /**
+     * Маршрут для загрузки изображений по кастомному пути
+     * POST /image/user/citizen и другие, в зависимости от конфигурации
+     */
+    router.post(customPath.route, (req, res, next) => {
+      // Добавляем предопределенный путь к запросу
+      req.body.path = customPath.directory;
+      next();
+    }, upload.any(), imageController.uploadImages);
+
+    /**
+     * Маршрут для получения информации о кастомном пути
+     * GET /image/user/citizen/info и т.д.
+     */
+    router.get(`${customPath.route}/info`, (req, res) => {
+      res.json({
+        route: customPath.route,
+        directory: customPath.directory,
+        description: customPath.description || 'Кастомный путь загрузки',
+        uploadsLocation: path.join(config.uploadsDir, customPath.directory)
+      });
+    });
+
+    console.log(`Зарегистрирован кастомный путь: ${customPath.route} -> ${customPath.directory}`);
+  });
+}
 
 // === Маршруты оптимизации ===
 
