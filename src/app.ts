@@ -75,8 +75,13 @@ app.get(config.routes.root, (req: Request, res: Response) => {
 });
 
 // Простой маршрут для проверки доступности сервера
+// Добавляем дополнительную проверку для гарантии быстрого ответа
 app.get(config.routes.health, (req: Request, res: Response) => {
-  res.status(200).json({ status: 'UP' });
+  res.status(200).json({ 
+    status: 'UP',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime()
+  });
 });
 
 // Запуск планировщика оптимизации изображений, если он включен в конфигурации
@@ -84,20 +89,41 @@ if (config.optimizer.scheduledOptimization) {
   schedulerService.startOptimizationScheduler();
 }
 
+// Переменная для отслеживания запущенного сервера
+let server: any;
+
 // Запуск сервера
-app.listen(config.port, () => {
-  console.log(`Сервер запущен на порту ${config.port}`);
-  console.log(`Путь для загрузки изображений: ${config.uploadsDir}`);
-  console.log(`UI доступен по адресу: http://localhost:${config.port}${config.routes.uploadUI}`);
-  
-  if (config.optimizer.optimizeOnUpload) {
-    console.log('Автоматическая оптимизация изображений при загрузке: ВКЛЮЧЕНА');
-  }
-  
-  if (config.optimizer.scheduledOptimization) {
-    console.log(`Плановая оптимизация изображений: ВКЛЮЧЕНА (расписание: ${config.optimizer.optimizationSchedule})`);
-  }
-});
+const startServer = () => {
+  server = app.listen(config.port, () => {
+    console.log(`Сервер запущен на порту ${config.port}`);
+    console.log(`Путь для загрузки изображений: ${config.uploadsDir}`);
+    console.log(`UI доступен по адресу: http://localhost:${config.port}${config.routes.uploadUI}`);
+    
+    if (config.optimizer.optimizeOnUpload) {
+      console.log('Автоматическая оптимизация изображений при загрузке: ВКЛЮЧЕНА');
+    }
+    
+    if (config.optimizer.scheduledOptimization) {
+      console.log(`Плановая оптимизация изображений: ВКЛЮЧЕНА (расписание: ${config.optimizer.optimizationSchedule})`);
+    }
+  });
+
+  // Обработка ошибок сервера
+  server.on('error', (e: any) => {
+    if (e.code === 'EADDRINUSE') {
+      console.error(`Порт ${config.port} занят. Попытка повторного запуска через 5 секунд...`);
+      setTimeout(() => {
+        server.close();
+        startServer();
+      }, 5000);
+    } else {
+      console.error('Ошибка сервера:', e);
+    }
+  });
+};
+
+// Запускаем сервер
+startServer();
 
 // Корректное завершение работы приложения
 process.on('SIGINT', () => {
@@ -108,7 +134,35 @@ process.on('SIGINT', () => {
     schedulerService.stopOptimizationScheduler();
   }
   
-  process.exit(0);
+  // Корректно завершаем работу сервера
+  if (server) {
+    server.close(() => {
+      console.log('Сервер остановлен');
+      process.exit(0);
+    });
+  } else {
+    process.exit(0);
+  }
+});
+
+// Аналогичная обработка для SIGTERM (используется Docker при остановке контейнера)
+process.on('SIGTERM', () => {
+  console.log('Получен сигнал SIGTERM. Завершение работы сервера...');
+  
+  // Останавливаем планировщик
+  if (config.optimizer.scheduledOptimization) {
+    schedulerService.stopOptimizationScheduler();
+  }
+  
+  // Корректно завершаем работу сервера
+  if (server) {
+    server.close(() => {
+      console.log('Сервер остановлен');
+      process.exit(0);
+    });
+  } else {
+    process.exit(0);
+  }
 });
 
 export default app;
