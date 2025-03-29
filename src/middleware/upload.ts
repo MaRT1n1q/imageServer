@@ -15,6 +15,9 @@ const ensureDirectoryExists = (directory: string): void => {
   }
 };
 
+// Создаем временную директорию, если она не существует
+ensureDirectoryExists(config.optimizer.largeImageHandling.tempDir);
+
 /**
  * Конфигурация хранилища для multer
  */
@@ -65,7 +68,7 @@ const upload = multer({
   storage,
   fileFilter,
   limits: {
-    fileSize: config.maxFileSize,
+    fileSize: Infinity, // Убираем ограничение размера, будем обрабатывать большие файлы отдельно
     files: config.maxFileCount
   }
 });

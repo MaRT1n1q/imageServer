@@ -1,6 +1,10 @@
 import { Request, Response } from 'express';
+import path from 'path';
+import fs from 'fs';
+import { promises as fsPromises } from 'fs';
 import config from '../config/config';
 import optimizerService from '../services/optimizerService';
+import { OptimizationStats } from '../types';
 
 /**
  * Контроллер для оптимизации изображений
@@ -26,8 +30,13 @@ class OptimizerController {
         });
       }
 
+      // Показываем информацию об агрессивном сжатии
+      const compressionMode = config.optimizer.largeImageHandling.aggressiveCompression.enabled
+        ? 'агрессивное сжатие для больших изображений'
+        : 'стандартное сжатие';
+      
       // Запускаем оптимизацию
-      console.log(`Запуск оптимизации в директории: ${directory}`);
+      console.log(`Запуск оптимизации в директории: ${directory} (режим: ${compressionMode})`);
       const stats = await optimizerService.optimizeDirectory(directory);
 
       // Формируем сообщение с результатами
@@ -39,7 +48,11 @@ class OptimizerController {
       return res.status(200).json({
         success: true,
         message,
-        stats
+        stats: {
+          ...stats,
+          largeImages: stats.largeImages || 0,
+          compressionMode
+        }
       });
     } catch (error) {
       console.error('Ошибка при оптимизации изображений:', error);
@@ -79,11 +92,55 @@ class OptimizerController {
         });
       }
       
+      // Проверяем размер файла до оптимизации
+      let originalSize = 0;
+      try {
+        const stats = await fsPromises.stat(fullPath);
+        originalSize = stats.size;
+      } catch (error) {
+        console.error('Ошибка при получении размера файла:', error);
+      }
+      
+      // Определяем, является ли файл большим изображением
+      const isLarge = await optimizerService.isLargeImage(fullPath);
+      
       // Оптимизируем изображение
-      console.log(`Запуск оптимизации одиночного изображения: ${fullPath}`);
+      console.log(`Запуск оптимизации одиночного изображения: ${fullPath}${isLarge ? ' (большой файл)' : ''}`);
       const result = await optimizerService.optimizeImage(fullPath);
       
+      // Если оптимизация прошла успешно, получаем новый размер файла
+      let newSize = 0;
+      let compressionInfo = {};
+      
       if (result) {
+        try {
+          const stats = await fsPromises.stat(fullPath);
+          newSize = stats.size;
+          
+          // Рассчитываем экономию места
+          const savedBytes = originalSize - newSize;
+          const savedPercent = originalSize > 0 ? (savedBytes / originalSize) * 100 : 0;
+          
+          compressionInfo = {
+            originalSize,
+            newSize,
+            savedBytes,
+            savedPercent: `${savedPercent.toFixed(2)}%`,
+            isLargeFile: isLarge,
+            compressionMode: isLarge && config.optimizer.largeImageHandling.aggressiveCompression.enabled ? 
+              'агрессивное сжатие' : 'стандартное сжатие'
+          };
+          
+          return res.status(200).json({
+            success: true,
+            message: 'Изображение успешно оптимизировано',
+            path: imagePath,
+            compressionInfo
+          });
+        } catch (error) {
+          console.error('Ошибка при получении размера оптимизированного файла:', error);
+        }
+        
         return res.status(200).json({
           success: true,
           message: 'Изображение успешно оптимизировано',
@@ -112,7 +169,13 @@ class OptimizerController {
   public async optimizeAfterUpload(filePath: string): Promise<void> {
     if (config.optimizer.optimizeOnUpload) {
       try {
-        console.log(`Автоматическая оптимизация после загрузки: ${filePath}`);
+        // Проверяем, является ли файл большим изображением
+        const isLarge = await optimizerService.isLargeImage(filePath);
+        if (isLarge) {
+          console.log(`Автоматическая оптимизация большого изображения после загрузки: ${filePath}`);
+        } else {
+          console.log(`Автоматическая оптимизация после загрузки: ${filePath}`);
+        }
         await optimizerService.optimizeImage(filePath);
       } catch (error) {
         console.error('Ошибка при автоматической оптимизации:', error);
@@ -120,8 +183,5 @@ class OptimizerController {
     }
   }
 }
-
-// Импорт path внутри файла
-import path from 'path';
 
 export default new OptimizerController();

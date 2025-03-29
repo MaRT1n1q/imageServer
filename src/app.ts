@@ -41,11 +41,19 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
       // Если не удалось распарсить ошибку, используем стандартное сообщение
     }
     
-    // Обработка ограничения размера файла
+    // Обработка ограничения размера файла (не должно происходить, т.к. мы установили Infinity)
     if (err.code === 'LIMIT_FILE_SIZE') {
       return res.status(400).json({
         success: false,
         message: config.messages.fileTooLarge.replace('%d', (config.maxFileSize / (1024 * 1024)).toString())
+      });
+    }
+    
+    // Обработка ограничения по количеству файлов
+    if (err.code === 'LIMIT_FILE_COUNT') {
+      return res.status(400).json({
+        success: false,
+        message: config.messages.tooManyFiles.replace('%d', config.maxFileCount.toString())
       });
     }
     

@@ -62,7 +62,7 @@ class SchedulerService {
   private async runOptimization(): Promise<void> {
     try {
       const stats = await optimizerService.optimizeDirectory();
-      console.log(`Плановая оптимизация завершена. Обработано: ${stats.processed}, оптимизировано: ${stats.optimized}, ошибок: ${stats.errors}`);
+      console.log(`Плановая оптимизация завершена. Обработано: ${stats.processed}, оптимизировано: ${stats.optimized}, ошибок: ${stats.errors}, больших изображений: ${stats.largeImages}`);
     } catch (error) {
       console.error('Ошибка при плановой оптимизации изображений:', error);
     }

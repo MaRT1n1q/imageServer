@@ -31,3 +31,26 @@ export interface ErrorResponse {
   // Код ошибки (опционально)
   errorCode?: number;
 }
+
+/**
+ * Интерфейс для статистики оптимизации
+ */
+export interface OptimizationStats {
+  // Количество обработанных файлов
+  processed: number;
+  
+  // Количество успешно оптимизированных файлов
+  optimized: number;
+  
+  // Количество ошибок при оптимизации
+  errors: number;
+  
+  // Количество обработанных больших изображений
+  largeImages: number;
+  
+  // Общий сэкономленный размер (в байтах, опционально)
+  savedBytes?: number;
+  
+  // Средний процент сжатия (опционально)
+  averageCompressionPercent?: number;
+}

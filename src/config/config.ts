@@ -65,6 +65,42 @@ interface Config {
     
     // Расписание запуска оптимизации (в формате cron)
     optimizationSchedule: string;
+    
+    // Настройки для больших изображений
+    largeImageHandling: {
+      // Размер в байтах, с которого изображение считается большим
+      largeImageThreshold: number;
+      
+      // Использовать потоковую обработку для больших файлов
+      useStreaming: boolean;
+      
+      // Максимальный размер изображения для обработки в одной итерации (в пикселях)
+      maxPixelsInMemory: number;
+      
+      // Временная директория для промежуточных файлов
+      tempDir: string;
+      
+      // Более агрессивное качество для больших изображений
+      aggressiveCompression: {
+        // Включить более агрессивное сжатие для больших файлов
+        enabled: boolean;
+        
+        // Качество JPEG для больших изображений (1-100)
+        jpegQuality: number;
+        
+        // Качество PNG для больших изображений (1-100)
+        pngQuality: number;
+        
+        // Качество WebP для больших изображений (1-100)
+        webpQuality: number;
+        
+        // Изменять размер очень больших изображений
+        resizeOversizedImages: boolean;
+        
+        // Максимальная ширина/высота после изменения размера (в пикселях)
+        maxDimension: number;
+      };
+    };
   };
   
   // Сообщения для UI и API
@@ -135,12 +171,30 @@ const config: Config = {
   },
   
   optimizer: {
-    jpegQuality: 75,
-    pngQuality: 80,
-    webpQuality: 75,
+    jpegQuality: 10,
+    pngQuality: 10,
+    webpQuality: 10,
     optimizeOnUpload: true,
     scheduledOptimization: false,
-    optimizationSchedule: '0 3 * * *' // Каждый день в 3:00
+    optimizationSchedule: '0 3 * * *', // Каждый день в 3:00
+    
+    // Настройки для обработки больших изображений
+    largeImageHandling: {
+      largeImageThreshold: 10 * 1024 * 1024, // 10MB
+      useStreaming: true,
+      maxPixelsInMemory: 100000000, // 100 мегапикселей
+      tempDir: path.join(rootDir, 'temp'),
+      
+      // Настройки агрессивного сжатия для больших изображений
+      aggressiveCompression: {
+        enabled: true,
+        jpegQuality: 60,
+        pngQuality: 65,
+        webpQuality: 55,
+        resizeOversizedImages: true,
+        maxDimension: 4000 // Максимальный размер 4000px
+      }
+    }
   },
   
   messages: {
