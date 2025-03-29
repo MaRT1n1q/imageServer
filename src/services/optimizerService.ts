@@ -359,18 +359,35 @@ class OptimizerService {
           await fsPromises.rename(tempPath, filePath);
         } catch (error) {
           console.error(`Ошибка при замене файла ${filePath}:`, error);
-          // Пробуем альтернативный метод копирования если rename не работает
+          
+          // Проверяем, является ли ошибка EXDEV (разные файловые системы)
+          const isExdevError = error instanceof Error && 
+                              'code' in error && 
+                              (error as any).code === 'EXDEV';
+          
+          // Используем альтернативный метод копирования через потоки
           try {
+            console.log(`Используем альтернативный метод копирования для файла ${tempPath} -> ${filePath}`);
+            
+            // Создаем потоки чтения и записи
             const readStream = fs.createReadStream(tempPath);
             const writeStream = fs.createWriteStream(filePath);
             
-            await new Promise((resolve, reject) => {
-              readStream.pipe(writeStream);
-              writeStream.on('finish', resolve);
+            // Копируем файл через потоки
+            await new Promise<void>((resolve, reject) => {
+              readStream.on('error', reject);
               writeStream.on('error', reject);
+              writeStream.on('finish', resolve);
+              readStream.pipe(writeStream);
             });
             
-            await fsPromises.unlink(tempPath);
+            // Удаляем временный файл после копирования
+            await fsPromises.unlink(tempPath).catch(err => {
+              console.warn(`Не удалось удалить временный файл ${tempPath}:`, err);
+            });
+            
+            // Если код дошел до этой точки, копирование успешно
+            console.log(`Успешно скопирован файл с помощью потоков: ${filePath}`);
           } catch (copyError) {
             console.error(`Ошибка при копировании файла ${tempPath} в ${filePath}:`, copyError);
             return false;

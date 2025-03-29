@@ -4,7 +4,7 @@ FROM node:lts-alpine
 # Устанавливаем рабочую директорию
 WORKDIR /app
 
-# Установка зависимостей для Sharp
+# Установка зависимостей для Sharp и необходимых утилит
 RUN apk add --no-cache python3 make g++ vips-dev
 
 # Копируем файлы package.json и package-lock.json
@@ -20,7 +20,9 @@ COPY . .
 RUN npm run build
 
 # Делаем директории для загрузок и временных файлов
-RUN mkdir -p /app/uploads /app/temp
+# и обеспечиваем соответствующие права доступа
+RUN mkdir -p /app/uploads /app/temp && \
+    chmod 777 /app/uploads /app/temp
 
 # Открываем порт
 EXPOSE 3000
