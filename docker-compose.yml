@@ -23,7 +23,9 @@ services:
       timeout: 10s
       retries: 3
       start_period: 10s
-    sysctls:
-      - fs.file-max=65536
-    cap_add:
-      - SYS_ADMIN
+    # Удаляем sysctls, которые требуют повышенных привилегий
+    # Оставляем только необходимые привилегии
+    privileged: false
+    # Заменяем на более безопасный вариант
+    security_opt:
+      - no-new-privileges:true

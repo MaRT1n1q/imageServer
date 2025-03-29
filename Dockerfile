@@ -24,18 +24,8 @@ RUN npm run build
 RUN mkdir -p /app/uploads /app/temp && \
     chmod 777 /app/uploads /app/temp
 
-# Добавляем скрипт для автоматического исправления прав доступа
-COPY <<-EOT /docker-entrypoint.sh
-#!/bin/sh
-set -e
-
-# Проверяем права на директории
-chmod -R 777 /app/uploads /app/temp
-
-# Запускаем приложение
-exec "$@"
-EOT
-
+# Создаем отдельный скрипт для docker-entrypoint
+COPY docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh
 
 # Открываем порт
