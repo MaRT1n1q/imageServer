@@ -1,26 +1,30 @@
 import { Router } from 'express';
 import imageController from '../controllers/imageController';
 import optimizerController from '../controllers/optimizerController';
+import healthController from '../controllers/healthController';
 import upload from '../middleware/upload';
-import path from 'path';
 import config from '../config/config';
 
 // Создание экземпляра маршрутизатора
 const router = Router();
 
+// === Служебные маршруты ===
+
+/**
+ * Простой маршрут для базовой проверки без логики
+ * GET /ping
+ */
+router.get('/ping', (req, res) => {
+  res.status(200).send('pong');
+});
+
 /**
  * Маршрут для проверки работоспособности сервера
  * GET /health
  */
-router.get(config.routes.health, (req, res) => {
-  res.status(200).json({ 
-    status: 'UP',
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
-    memoryUsage: process.memoryUsage(),
-    version: process.env.npm_package_version || '1.0.0'
-  });
-});
+router.get('/health', healthController.checkHealth);
+
+// === Маршруты загрузки и управления изображениями ===
 
 /**
  * Маршрут для отображения UI загрузки изображений
@@ -39,6 +43,8 @@ router.get(config.routes.uploadUI, (req, res) => {
  */
 router.post(config.routes.uploadAPI, upload.any(), imageController.uploadImages);
 
+// === Маршруты оптимизации ===
+
 /**
  * Маршрут для запуска оптимизации всех изображений
  * GET /optimize?path=optional/subdirectory
@@ -51,9 +57,12 @@ router.get(config.routes.optimize, optimizerController.optimizeAllImages);
  */
 router.post(`${config.routes.optimize}/:path*`, optimizerController.optimizeSingleImage);
 
+// === Общий маршрут для получения изображений ===
+
 /**
  * Маршрут для получения изображения по пути
  * GET /*
+ * Должен быть последним, так как перехватывает все GET запросы
  */
 router.get('/*', imageController.getImage);
 

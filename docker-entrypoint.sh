@@ -16,6 +16,10 @@ echo "Проверка доступности директорий для зап
 touch /app/uploads/.writetest && rm /app/uploads/.writetest
 touch /app/temp/.writetest && rm /app/temp/.writetest
 
+# Проверяем наличие инструментов
+echo "Проверка наличия wget..."
+which wget || echo "ОШИБКА: wget не найден!"
+
 # Устанавливаем обработчик для корректного завершения процесса Node.js
 cleanup() {
     echo "Получен сигнал остановки, завершаем работу..."
@@ -29,39 +33,19 @@ cleanup() {
 trap cleanup SIGINT SIGTERM
 
 echo "Запуск приложения..."
-# Запускаем Node.js приложение в фоновом режиме
+# Запускаем Node.js приложение в прямом режиме для отображения всех ошибок
 node dist/app.js &
 NODE_PID=$!
 
-# Функция для проверки, запущен ли сервер
-wait_for_server() {
-  echo "Ожидание запуска сервера..."
-  for i in $(seq 1 30); do
-    # Используем переменную PORT из среды, или 3000 по умолчанию
-    LOCAL_PORT=${PORT:-3000}
-    # Более надежный способ проверки доступности сервера
-    health_response=$(wget -q -O - http://localhost:$LOCAL_PORT/health 2>/dev/null || echo "FAILED")
-    
-    if [ "$health_response" != "FAILED" ] && [ "$health_response" != "" ]; then
-      echo "Сервер успешно запущен на порту $LOCAL_PORT!"
-      echo "Ответ от /health: $health_response"
-      return 0
-    fi
-    echo "Попытка $i из 30: Сервер еще не готов..."
-    sleep 1
-  done
-  echo "Сервер не запустился в течение 30 секунд."
-  return 1
-}
+# Даем приложению время инициализироваться
+echo "Ожидание инициализации приложения..."
+sleep 5
 
-# Ждем запуска сервера
-if ! wait_for_server; then
-  echo "Ошибка запуска сервера. Проверьте логи для получения дополнительной информации."
-  kill $NODE_PID
-  exit 1
-fi
+# Тестируем напрямую доступность эндпоинта health
+echo "Проверка эндпоинта /health..."
+wget -O - http://localhost:3000/health || echo "ОШИБКА: Эндпоинт /health недоступен"
+curl -v http://localhost:3000/health 2>&1 || echo "ОШИБКА: Curl не смог подключиться к /health"
 
-echo "Сервис полностью запущен и готов к работе"
-
-# Ждем завершения работы приложения
+# Ожидаем завершения работы приложения
+echo "Приложение запущено, PID: $NODE_PID"
 wait $NODE_PID

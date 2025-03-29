@@ -5,7 +5,7 @@ FROM node:lts-alpine
 WORKDIR /app
 
 # Установка зависимостей для Sharp, wget и необходимых утилит
-RUN apk add --no-cache python3 make g++ vips-dev bash coreutils wget
+RUN apk add --no-cache python3 make g++ vips-dev bash coreutils wget curl net-tools
 
 # Копируем файлы package.json и package-lock.json
 COPY package*.json ./

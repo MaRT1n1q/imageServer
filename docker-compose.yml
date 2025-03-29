@@ -18,13 +18,13 @@ services:
     tmpfs:
       - /tmp
     healthcheck:
-      # Используем shell формат для проверки здоровья
-      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      # Более простая и надежная команда проверки
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
       # Увеличиваем время запуска для полной инициализации сервера
-      start_period: 20s
+      start_period: 30s
     privileged: false
     security_opt:
       - no-new-privileges:true
