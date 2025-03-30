@@ -6,6 +6,7 @@ import { UploadResponse, ErrorResponse } from '../types';
 import optimizerController from './optimizerController';
 import { promises as fsPromises } from 'fs';
 import crypto from 'crypto';
+import UrlUtils from '../utils/urlUtils';
 
 /**
  * Контроллер для работы с изображениями
@@ -24,10 +25,18 @@ class ImageController {
         bodyPath: req.body?.path || 'не указан', 
         localsPath: res.locals?.customUploadPath || 'не указан',
         filesCount: req.files ? (Array.isArray(req.files) ? req.files.length : 1) : 0,
-        customRoute: res.locals.customRoute || 'стандартный маршрут'
+        customRoute: res.locals.customRoute || 'стандартный маршрут',
+        secure: req.secure || false,
+        headers: {
+          forwardedProto: req.headers['x-forwarded-proto'],
+          host: req.headers.host
+        }
       });
 
-      const baseUrl = `${req.protocol}://${req.get('host')}`;
+      // Используем UrlUtils для определения базового URL с учетом HTTPS
+      const baseUrl = UrlUtils.getBaseUrl(req);
+      console.log(`Используется базовый URL: ${baseUrl}`);
+      
       const results = [];
 
       // Проверка на загрузку base64-изображения
@@ -111,17 +120,19 @@ class ImageController {
         // Относительный путь для URL
         const relativePath = path.relative(config.uploadsDir, filePath).replace(/\\/g, '/');
         
+        // Используем UrlUtils для создания полного URL
+        const fileUrl = UrlUtils.getFullUrl(req, relativePath);
+        
         results.push({
           filename: fileName,
           originalname: fileName,
           path: relativePath,
-          url: `${baseUrl}/${relativePath}`,
+          url: fileUrl,
           size: imageBuffer.length,
           mimetype: mimeType || 'image/jpeg'
         });
       } else if (req.files && (Array.isArray(req.files) || req.files.image)) {
         // Стандартная обработка загрузки файлов через multer
-        // Проверяем наличие загруженных файлов
         if (!req.files || (Array.isArray(req.files) && req.files.length === 0)) {
           const errorResponse: ErrorResponse = {
             success: false,
@@ -134,18 +145,22 @@ class ImageController {
 
         // Обрабатываем каждый загруженный файл
         for (const file of files as Express.Multer.File[]) {
+          // Получаем относительный путь к файлу
           const relativePath = path.relative(config.uploadsDir, file.path).replace(/\\/g, '/');
           
-          // Автоматическая оптимизация изображения, если включена соответствующая опция
+          // Автоматическая оптимизация изображения, если включена
           if (config.optimizer.optimizeOnUpload) {
             await optimizerController.optimizeAfterUpload(file.path);
           }
+          
+          // Создаем полный URL с помощью UrlUtils
+          const fileUrl = UrlUtils.getFullUrl(req, relativePath);
           
           results.push({
             filename: file.filename,
             originalname: file.originalname,
             path: relativePath,
-            url: `${baseUrl}/${relativePath}`,
+            url: fileUrl,
             size: file.size,
             mimetype: file.mimetype
           });
@@ -159,34 +174,46 @@ class ImageController {
         return res.status(400).json(errorResponse);
       }
 
-      // Если загружен только один файл, возвращаем информацию о нем
+      // Формируем ответ в зависимости от количества загруженных файлов
       if (results.length === 1) {
+        // Одиночный файл
         const fileInfo = results[0];
         const response: UploadResponse = {
           success: true,
           filename: fileInfo.filename,
           path: fileInfo.path,
           url: fileInfo.url,
-          message: config.messages.uploadSuccess,
-          // Добавляем информацию о кастомном пути, если она есть
-          customRoute: res.locals.customRoute,
-          customDirectory: res.locals.customDirectory
+          message: config.messages.uploadSuccess
         };
+        
+        // Добавляем информацию о кастомном пути, если она есть
+        if (res.locals.customRoute) {
+          response.customRoute = res.locals.customRoute;
+          response.customDirectory = res.locals.customDirectory;
+          response.customDescription = res.locals.customDescription;
+        }
+        
+        return res.status(201).json(response);
+      } else {
+        // Множественные файлы
+        const response = {
+          success: true,
+          message: config.messages.multipleUploadSuccess.replace('%d', results.length.toString()),
+          files: results,
+          totalCount: results.length
+        };
+        
+        // Добавляем информацию о кастомном пути, если она есть
+        if (res.locals.customRoute) {
+          Object.assign(response, {
+            customRoute: res.locals.customRoute,
+            customDirectory: res.locals.customDirectory,
+            customDescription: res.locals.customDescription
+          });
+        }
+        
         return res.status(201).json(response);
       }
-
-      // Если загружено несколько файлов, возвращаем информацию о всех
-      const response = {
-        success: true,
-        message: config.messages.multipleUploadSuccess.replace('%d', results.length.toString()),
-        files: results,
-        totalCount: results.length,
-        // Добавляем информацию о кастомном пути, если она есть
-        customRoute: res.locals.customRoute,
-        customDirectory: res.locals.customDirectory
-      };
-      
-      return res.status(201).json(response);
     } catch (error) {
       console.error('Ошибка при загрузке файлов:', error);
       const errorResponse: ErrorResponse = {

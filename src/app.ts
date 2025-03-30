@@ -8,6 +8,9 @@ import schedulerService from './services/schedulerService';
 // Создаем экземпляр приложения Express
 const app = express();
 
+// Добавляем настройку для корректного определения протокола за прокси
+app.set('trust proxy', true);
+
 // Middleware для разбора JSON и URL-encoded данных
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));

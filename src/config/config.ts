@@ -166,6 +166,12 @@ interface Config {
     // Сообщение об ошибке при оптимизации
     optimizationError: string;
   };
+
+  // Настройки HTTPS
+  https: {
+    // Использовать HTTPS принудительно при формировании URL
+    forceHttps: boolean;
+  };
 }
 
 // Корневой путь проекта
@@ -195,9 +201,9 @@ const config: Config = {
   
   optimizer: {
     // Повышаем качество оптимизации для обычных изображений
-    jpegQuality: 20, // Было 10, повышаем до 85
-    pngQuality: 20,  // Было 10, повышаем до 80
-    webpQuality: 20, // Было 10, повышаем до 85
+    jpegQuality: 40, // Было 10, повышаем до 85
+    pngQuality: 40,  // Было 10, повышаем до 80
+    webpQuality: 40, // Было 10, повышаем до 85
     optimizeOnUpload: true,
     scheduledOptimization: false,
     optimizationSchedule: '0 3 * * *', // Каждый день в 3:00
@@ -215,9 +221,9 @@ const config: Config = {
       // Настройки агрессивного сжатия для больших изображений - повышаем качество
       aggressiveCompression: {
         enabled: true,
-        jpegQuality: 20, // Было 60, повышаем до 75
-        pngQuality: 20,  // Было 65, повышаем до 70
-        webpQuality: 20, // Было 55, повышаем до 75
+        jpegQuality: 40, // Было 60, повышаем до 75
+        pngQuality: 40,  // Было 65, повышаем до 70
+        webpQuality: 40, // Было 55, повышаем до 75
         resizeOversizedImages: true,
         maxDimension: 4000 // Максимальный размер 4000px
       }
@@ -265,6 +271,11 @@ const config: Config = {
     serverError: 'Произошла ошибка при получении изображения',
     optimizationSuccess: 'Оптимизация завершена успешно. Обработано: %d, оптимизировано: %d, ошибок: %d',
     optimizationError: 'Ошибка при оптимизации изображений'
+  },
+
+  // Настройки для HTTPS
+  https: {
+    forceHttps: true  // Установите true, чтобы всегда формировать URL с https://
   }
 };
 
