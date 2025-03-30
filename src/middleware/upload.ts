@@ -23,10 +23,17 @@ ensureDirectoryExists(config.optimizer.largeImageHandling.tempDir);
  */
 const storage = multer.diskStorage({
   destination: (req: Request, file: Express.Multer.File, cb) => {
-    // Получаем путь для загрузки из запроса или используем путь по умолчанию
-    const uploadPath = req.body.path 
-      ? path.join(config.uploadsDir, req.body.path) 
-      : config.uploadsDir;
+    // Проверяем, установлен ли кастомный путь в res.locals
+    let uploadPath: string;
+    
+    if ((req as any).res && (req as any).res.locals && (req as any).res.locals.customUploadPath) {
+      uploadPath = path.join(config.uploadsDir, (req as any).res.locals.customUploadPath);
+      console.log(`Используется кастомный путь: ${uploadPath}`);
+    } else if (req.body.path) {
+      uploadPath = path.join(config.uploadsDir, req.body.path);
+    } else {
+      uploadPath = config.uploadsDir;
+    }
     
     // Проверяем, что путь находится внутри основной директории загрузки
     if (!uploadPath.startsWith(config.uploadsDir)) {
