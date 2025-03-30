@@ -91,9 +91,10 @@ const startServer = () => {
     
     // Логирование кастомных путей
     if (config.customPaths.enabled && config.customPaths.paths.length > 0) {
-      console.log('\nДоступные кастомные пути:');
+      console.log('\nДоступные кастомные пути для загрузки:');
       config.customPaths.paths.forEach(customPath => {
-        console.log(`- ${customPath.route} -> ${path.join(config.uploadsDir, customPath.directory)} (${customPath.description || 'Нет описания'})`);
+        console.log(`- POST ${customPath.route} -> ${path.join(config.uploadsDir, customPath.directory)} (${customPath.description || 'Нет описания'})`);
+        console.log(`  Информация: GET ${customPath.route}/info`);
       });
       console.log(''); // Пустая строка для разделения
     }

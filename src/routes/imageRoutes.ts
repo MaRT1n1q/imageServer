@@ -53,19 +53,27 @@ if (config.customPaths.enabled && config.customPaths.paths.length > 0) {
      * POST /image/user/citizen и другие, в зависимости от конфигурации
      */
     router.post(customPath.route, (req, res, next) => {
-      // Используем multer с настройками конкретного пути
-      const customUploadHandler = upload.any();
-      
       // Сохраняем информацию о пути в res.locals для последующего использования
       res.locals.customUploadPath = customPath.directory;
       
-      // Вызываем middleware multer
-      customUploadHandler(req, res, next);
-    }, (req, res, next) => {
-      // Добавляем предопределенный путь к запросу после обработки multer
-      if (res.locals.customUploadPath) {
-        req.body.path = res.locals.customUploadPath;
-      }
+      // Добавляем прямо в body.path для совместимости
+      if (!req.body) req.body = {};
+      req.body.path = customPath.directory;
+      
+      // Логируем для отладки
+      console.log(`Обрабатываем загрузку на кастомный путь ${customPath.route}, установлен путь директории: ${customPath.directory}`);
+      
+      // Продолжаем выполнение запроса через middleware
+      next();
+    }, upload.any(), (req, res, next) => {
+      // Добавляем дополнительную информацию после обработки multer
+      res.locals.customRoute = customPath.route;
+      res.locals.customDirectory = customPath.directory;
+      res.locals.customDescription = customPath.description || '';
+      
+      // Убедимся, что путь доступен в req.body даже после multer
+      req.body.path = customPath.directory;
+      
       next();
     }, imageController.uploadImages);
 

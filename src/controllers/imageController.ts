@@ -19,6 +19,14 @@ class ImageController {
    */
   public uploadImages = async (req: Request, res: Response): Promise<Response> => {
     try {
+      // Логируем информацию о запросе для отладки
+      console.log('uploadImages запрос получен', { 
+        bodyPath: req.body?.path || 'не указан', 
+        localsPath: res.locals?.customUploadPath || 'не указан',
+        filesCount: req.files ? (Array.isArray(req.files) ? req.files.length : 1) : 0,
+        customRoute: res.locals.customRoute || 'стандартный маршрут'
+      });
+
       const baseUrl = `${req.protocol}://${req.get('host')}`;
       const results = [];
 
@@ -159,7 +167,10 @@ class ImageController {
           filename: fileInfo.filename,
           path: fileInfo.path,
           url: fileInfo.url,
-          message: config.messages.uploadSuccess
+          message: config.messages.uploadSuccess,
+          // Добавляем информацию о кастомном пути, если она есть
+          customRoute: res.locals.customRoute,
+          customDirectory: res.locals.customDirectory
         };
         return res.status(201).json(response);
       }
@@ -169,7 +180,10 @@ class ImageController {
         success: true,
         message: config.messages.multipleUploadSuccess.replace('%d', results.length.toString()),
         files: results,
-        totalCount: results.length
+        totalCount: results.length,
+        // Добавляем информацию о кастомном пути, если она есть
+        customRoute: res.locals.customRoute,
+        customDirectory: res.locals.customDirectory
       };
       
       return res.status(201).json(response);

@@ -28,11 +28,17 @@ const storage = multer.diskStorage({
     
     if ((req as any).res && (req as any).res.locals && (req as any).res.locals.customUploadPath) {
       uploadPath = path.join(config.uploadsDir, (req as any).res.locals.customUploadPath);
-      console.log(`Используется кастомный путь: ${uploadPath}`);
-    } else if (req.body.path) {
+      console.log(`Используется кастомный путь из res.locals: ${uploadPath}`);
+      
+      // Устанавливаем путь и в req.body для обеспечения совместимости
+      if (!req.body) req.body = {};
+      req.body.path = (req as any).res.locals.customUploadPath;
+    } else if (req.body && req.body.path) {
       uploadPath = path.join(config.uploadsDir, req.body.path);
+      console.log(`Используется путь из req.body: ${uploadPath}`);
     } else {
       uploadPath = config.uploadsDir;
+      console.log(`Используется путь по умолчанию: ${uploadPath}`);
     }
     
     // Проверяем, что путь находится внутри основной директории загрузки

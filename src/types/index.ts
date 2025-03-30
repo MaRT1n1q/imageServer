@@ -16,6 +16,15 @@ export interface UploadResponse {
   
   // Сообщение (может использоваться для ошибок или успешных операций)
   message?: string;
+  
+  // Информация о кастомном пути (если используется)
+  customRoute?: string;
+  
+  // Директория кастомного пути
+  customDirectory?: string;
+  
+  // Описание кастомного пути
+  customDescription?: string;
 }
 
 /**
